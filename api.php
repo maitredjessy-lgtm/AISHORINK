@@ -147,6 +147,31 @@ if (getOne('meta', 'seed_cot2000') === null) {
     putOne('meta', 'seed_cot2000', ['done' => true]);
 }
 
+/* ---- Coordonnées officielles de l'association (d'après le calendrier d'activités 2025) ---- */
+if (getOne('meta', 'seed_asso_contact') === null) {
+    $asso = getOne('asso', 'main');
+    if ($asso) {
+        $siege = $asso['siege'] ?? '';
+        if ($siege === '' || stripos($siege, 'compléter') !== false || strpos($siege, 'KOSHIKI IVOIRE –') === 0)
+            $asso['siege'] = "KOSHIKI IVOIRE – Abobo PK 18, route d'Anyama, Autoroute Mohamed VI, non loin de l'ancien marché, Abidjan (Côte d'Ivoire)";
+        $defaults = [
+            'bp' => '13 BP 3177 Abidjan 13',
+            'tel' => '05 05 55 32 19 / 07 78 99 06 84 / 01 42 42 03 30',
+            'email' => 'aishorink.karateciv@yahoo.fr / aishorink.karateciv@gmail.com',
+            'devise' => "Développement spirituel de l'individualité dans l'esprit et le corps",
+            'statut' => "Association reconnue par l'État de Côte d'Ivoire. Récépissé de déclaration n°230/MEMAT/DGAP/DAG/SDVAC du 22 mars 2004 (Ministère d'État, Ministère de l'Administration du Territoire).",
+        ];
+        foreach ($defaults as $k => $v) if (trim((string)($asso[$k] ?? '')) === '') $asso[$k] = $v;
+        putOne('asso', 'main', $asso);
+    }
+    $kc = getOne('clubs', 'c_koshiki');
+    if ($kc && strpos($kc['adresse'] ?? '', "Abobo PK 18, non loin") === 0) {
+        $kc['adresse'] = "Abobo PK 18, route d'Anyama, Autoroute Mohamed VI, non loin de l'ancien marché (siège de l'association)";
+        putOne('clubs', 'c_koshiki', $kc);
+    }
+    putOne('meta', 'seed_asso_contact', ['done' => true]);
+}
+
 /* ---- Requête ---- */
 $in = [];
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST requis', 405);

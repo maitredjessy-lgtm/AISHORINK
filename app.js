@@ -128,7 +128,7 @@ function layout(route) {
   if (u?.role === 'admin') links.push(['#/admin', 'Administration']);
   $('#nav').innerHTML = links.map(([h, l]) => `<a href="${h}" class="${('#' + route) === h ? 'on' : ''}">${l}</a>`).join('');
   $('#who').innerHTML = u ? `<span>${esc(u.nom)} <span class="tag">${u.role === 'admin' ? 'Admin' : 'Maître'}</span></span><a class="btn sm alt" data-a="logout">Déconnexion</a>` : `<a class="btn sm" href="#/login">Connexion</a>`;
-  $('#foot').innerHTML = `© ${new Date().getFullYear()} AISHORINK – ${esc(db.asso.nom)}<br>Siège : ${esc(db.asso.siege)}`;
+  $('#foot').innerHTML = `© ${new Date().getFullYear()} AISHORINK – ${esc(db.asso.nom)}<br>Siège : ${esc(db.asso.siege)}${db.asso.bp ? " – " + esc(db.asso.bp) : ""}${db.asso.tel ? "<br>Tél : " + esc(db.asso.tel) : ""}`;
 }
 
 async function render() {
@@ -154,7 +154,10 @@ async function render() {
   window.scrollTo(0, 0);
 }
 
-const denied = () => `<div class="card"><h2>Accès réservé</h2><p>Cet espace n'est accessible qu'au maître du club concerné ou à l'administrateur général.</p><a class="btn" href="#/login">Se connecter</a></div>`;
+const mailLinks = v => esc(v).replace(/[\w.+-]+@[\w.-]+\.\w+/g, m => `<a href="mailto:${m}">${m}</a>`);
+const contactHtml = () => [db.asso.bp && `✉ ${esc(db.asso.bp)}`, db.asso.tel && `☎ ${esc(db.asso.tel)}`, db.asso.email && `@ ${mailLinks(db.asso.email)}`].filter(Boolean).join('<br>');
+
+const denied =() => `<div class="card"><h2>Accès réservé</h2><p>Cet espace n'est accessible qu'au maître du club concerné ou à l'administrateur général.</p><a class="btn" href="#/login">Se connecter</a></div>`;
 
 /* ---------- Pages publiques ---------- */
 function pgHome() {
@@ -169,14 +172,14 @@ function pgHome() {
   </div>
   <h2>Prochaines activités</h2>
   ${nextActs.length ? `<div class="grid">${nextActs.map(actCard).join('')}</div>` : '<p class="empty">Aucune activité programmée.</p>'}
-  <h2>Siège de l'association</h2><div class="card">${esc(db.asso.siege)}<br>${esc(db.asso.tel)} ${esc(db.asso.email)}</div>`;
+  <h2>Siège et contacts</h2><div class="card"><b>${esc(db.asso.siege)}</b><br>${contactHtml()}</div>${db.asso.devise ? `<p class="sub" style="text-align:center;margin-top:20px"><i>« ${esc(db.asso.devise)} »</i></p>` : ''}`;
 }
 
 function pgAsso() {
   const masters = db.users.filter(u => u.role === 'maitre').sort((a, b) => (b.grade ?? -1) - (a.grade ?? -1));
   const a = isAdmin();
   return `<h1>L'association</h1><p class="sub">${esc(db.asso.nom)}</p>
-  <div class="card"><dl><dt>Siège</dt><dd>${esc(db.asso.siege)}</dd><dt>Téléphone</dt><dd>${esc(db.asso.tel) || '—'}</dd><dt>Email</dt><dd>${esc(db.asso.email) || '—'}</dd><dt>Cotisation mensuelle des maîtres</dt><dd>${money(db.asso.cotMaitre)}</dd></dl>
+  <div class="card"><dl><dt>Devise</dt><dd>${db.asso.devise ? '« ' + esc(db.asso.devise) + ' »' : '—'}</dd><dt>Siège social</dt><dd>${esc(db.asso.siege)}</dd><dt>Boîte postale</dt><dd>${esc(db.asso.bp) || '—'}</dd><dt>Téléphone</dt><dd>${esc(db.asso.tel) || '—'}</dd><dt>Email</dt><dd>${db.asso.email ? mailLinks(db.asso.email) : '—'}</dd><dt>Statut</dt><dd>${esc(db.asso.statut) || '—'}</dd><dt>Cotisation mensuelle des maîtres</dt><dd>${money(db.asso.cotMaitre)}</dd></dl>
   ${a ? '<p><button class="btn sm" data-a="editAsso">Modifier</button></p>' : ''}</div>
   <h2>Organigramme / Bureau ${a ? '<button class="btn sm" data-a="addBureau">+ Ajouter</button>' : ''}</h2>
   <table><tr><th>Poste</th><th>Nom</th>${a ? '<th></th>' : ''}</tr>${db.asso.bureau.map((b, i) => `<tr><td>${esc(b.poste)}</td><td>${esc(b.nom)}</td>${a ? `<td><button class="btn sm dng" data-a="delBureau" data-i="${i}">Retirer</button></td>` : ''}</tr>`).join('')}</table>
@@ -413,7 +416,7 @@ const A = {
   tab: d => { S.tab = d.k; rerender(); },
   atab: d => { S.atab = d.k; rerender(); },
   yr: d => { S.year += +d.d; rerender(); },
-  editAsso: () => openForm('Association', [{ n: 'nom', l: 'Nom' }, { n: 'siege', l: 'Siège' }, { n: 'tel', l: 'Téléphone' }, { n: 'email', l: 'Email' }, { n: 'cotMaitre', l: 'Cotisation mensuelle des maîtres', t: 'number' }], db.asso,
+  editAsso: () => openForm('Association', [{ n: 'nom', l: 'Nom' }, { n: 'devise', l: 'Devise' }, { n: 'siege', l: 'Siège social' }, { n: 'bp', l: 'Boîte postale' }, { n: 'tel', l: 'Téléphone(s)' }, { n: 'email', l: 'Email(s)' }, { n: 'statut', l: 'Statut juridique (récépissé…)', t: 'textarea' }, { n: 'cotMaitre', l: 'Cotisation mensuelle des maîtres', t: 'number' }], db.asso,
     o => { Object.assign(db.asso, { ...o, cotMaitre: +o.cotMaitre || 0 }); save(); rerender(); }),
   addBureau: () => openForm('Membre du bureau', [{ n: 'poste', l: 'Poste', req: 1 }, { n: 'nom', l: 'Nom', req: 1 }], {}, o => { db.asso.bureau.push(o); save(); rerender(); }),
   delBureau: d => { db.asso.bureau.splice(+d.i, 1); save(); rerender(); },
