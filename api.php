@@ -107,6 +107,39 @@ if (getOne('meta', 'seed_grand_maitre') === null) {
     putOne('meta', 'seed_grand_maitre', ['done' => true]);
 }
 
+/* ---- Autres maîtres + club ACADÉMIE SHORINJIRYU CLUB (une seule fois) ----
+   Grades : 2e DAN = 11, 3e DAN = 12, 4e DAN = 13. Mots de passe aléatoires : l'administrateur les définit. */
+if (getOne('meta', 'seed_maitres_1') === null) {
+    $maitres = [
+        ['u_sidibe', 'SIDIBÉ Adama', 'adama.sidibe', 13],
+        ['u_ouattara', 'OUATTARA Bouara Rokya', 'rokya.ouattara', 13],
+        ['u_kabore', 'KABORÉ Djessy Paul Rhany', 'djessy.kabore', 12],
+        ['u_togola', 'TOGOLA Sorry', 'sorry.togola', 11],
+    ];
+    foreach ($maitres as [$id, $nom, $login, $grade]) {
+        if (getOne('users', $id) !== null) continue;
+        foreach (getAll('users') as $u) if (strtolower($u['login']) === $login) $login .= '2';
+        putOne('users', $id, ['id' => $id, 'login' => $login, 'hash' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+            'role' => 'maitre', 'nom' => $nom, 'grade' => $grade, 'cot' => new stdClass()]);
+    }
+    if (getOne('clubs', 'c_academie') === null) {
+        $n = 0; foreach (getAll('clubs') as $c) $n = max($n, (int)substr($c['matricule'] ?? 'AISK-0', 5));
+        putOne('clubs', 'c_academie', ['id' => 'c_academie', 'matricule' => sprintf('AISK-%03d', $n + 1), 'nom' => 'ACADÉMIE SHORINJIRYU CLUB',
+            'ville' => 'Anyama', 'adresse' => "Anyama résidentiel, à l'école Henriette Dagry Diabaté", 'tel' => '', 'email' => '', 'creation' => '', 'cotEleve' => 0,
+            'maitreId' => 'u_kabore', 'seances' => [], 'presence' => new stdClass(),
+            'prospectus' => ['inscription' => '', 'jours' => '', 'prixGrades' => '']]);
+    }
+    $asso = getOne('asso', 'main');
+    if ($asso) {
+        $bureau = $asso['bureau'] ?? [];
+        $deja = false; foreach ($bureau as $b) if (stripos($b['poste'] ?? '', 'présidente') !== false || stripos($b['poste'] ?? '', 'president') !== false) $deja = true;
+        if (!$deja) array_unshift($bureau, ['poste' => "Présidente de l'Association", 'nom' => 'OUATTARA Bouara Rokya (4e DAN)']);
+        $asso['bureau'] = $bureau;
+        putOne('asso', 'main', $asso);
+    }
+    putOne('meta', 'seed_maitres_1', ['done' => true]);
+}
+
 /* ---- Requête ---- */
 $in = [];
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST requis', 405);
