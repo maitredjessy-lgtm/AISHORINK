@@ -226,6 +226,13 @@ if (getOne('meta', 'seed_communique_noms') === null) {
     putOne('meta', 'seed_communique_noms', ['done' => true]);
 }
 
+/* ---- Onglet Tâches : la Présidente peut déléguer (une seule fois) ---- */
+if (getOne('meta', 'seed_taches') === null) {
+    $p = getOne('users', 'u_ouattara');
+    if ($p) { $p['delegue'] = true; putOne('users', 'u_ouattara', $p); }
+    putOne('meta', 'seed_taches', ['done' => true]);
+}
+
 /* ---- Requête ---- */
 $in = [];
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST requis', 405);
@@ -279,7 +286,8 @@ if ($action === 'state') {
     $eleves = array_values(array_filter(getAll('eleves'), fn($e) => canClub($u, $e['clubId'] ?? null)));
     out(['meId' => $u['id'] ?? null, 'asso' => getOne('asso', 'main'), 'users' => $users, 'clubs' => $clubs, 'eleves' => $eleves,
          'activites' => getAll('activites'), 'finances' => getAll('finances'),
-         'examens' => $admin ? getAll('examens') : []]);
+         'examens' => $admin ? getAll('examens') : [],
+         'taches' => array_values(array_filter(getAll('taches'), fn($t) => $admin || ($u && (($t['assigneId'] ?? '') === $u['id'] || ($t['creePar'] ?? '') === $u['id']))))]);
 }
 
 if ($action === 'sync') {
@@ -293,12 +301,15 @@ if ($action === 'sync') {
         foreach ($ops as $op) {
             $coll = (string)($op['coll'] ?? ''); $id = (string)($op['id'] ?? ''); $kind = $op['op'] ?? '';
             if (!preg_match('/^[A-Za-z0-9_]{1,40}$/', $id)) throw new RuntimeException('Identifiant invalide.');
-            if (!in_array($coll, ['asso', 'users', 'clubs', 'eleves', 'activites', 'finances', 'examens'], true)) throw new RuntimeException('Collection invalide.');
+            if (!in_array($coll, ['asso', 'users', 'clubs', 'eleves', 'activites', 'finances', 'examens', 'taches'], true)) throw new RuntimeException('Collection invalide.');
 
             if ($kind === 'del') {
                 if ($coll === 'eleves') {
                     $e = getOne('eleves', $id);
                     if ($e && !canClub($u, $e['clubId'])) throw new RuntimeException('Accès refusé.', 403);
+                } elseif ($coll === 'taches') {
+                    $tk = getOne('taches', $id);
+                    if ($tk && !($admin || (($tk['creePar'] ?? '') === $u['id'] && !empty($u['delegue'])))) throw new RuntimeException('Accès refusé.', 403);
                 } else {
                     if (!$admin) throw new RuntimeException('Accès refusé.', 403);
                     if ($coll === 'asso' || ($coll === 'users' && $id === 'u_admin')) throw new RuntimeException('Suppression interdite.');
@@ -326,10 +337,39 @@ if ($action === 'sync') {
                     if (!empty($doc['pw'])) $hash = password_hash((string)$doc['pw'], PASSWORD_DEFAULT);
                     if (!$hash) throw new RuntimeException('Mot de passe requis.');
                     putOne('users', $id, [
-                        'id' => $id, 'login' => $login, 'hash' => $hash, 'role' => $old['role'] ?? 'maitre',
+                        'id' => $id, 'login' => $login, 'hash' => $hash, 'role' => $old['role'] ?? (in_array($doc['role'] ?? '', ['maitre', 'bureau'], true) ? $doc['role'] : 'maitre'),
+                        'delegue' => !empty($doc['delegue']),
                         'nom' => (string)($doc['nom'] ?? ''), 'grade' => $doc['grade'] ?? null,
                         'cot' => $doc['cot'] ?? new stdClass(),
                     ]); break;
+                case 'taches':
+                    $peutDeleguer = $admin || !empty($u['delegue']);
+                    $nouveaux = [];
+                    $anciensC = $old['commentaires'] ?? [];
+                    foreach (array_slice(is_array($doc['commentaires'] ?? null) ? $doc['commentaires'] : [], count($anciensC)) as $c)
+                        $nouveaux[] = ['auteur' => $u['id'], 'texte' => mb_substr((string)($c['texte'] ?? ''), 0, 2000), 'date' => gmdate('c')];
+                    $statut = in_array($doc['statut'] ?? '', ['a_faire', 'en_cours', 'fait'], true) ? $doc['statut'] : ($old['statut'] ?? 'a_faire');
+                    if ($old === null) {
+                        if (!$peutDeleguer) throw new RuntimeException('Accès refusé.', 403);
+                        if (!getOne('users', (string)($doc['assigneId'] ?? ''))) throw new RuntimeException('Destinataire inconnu.');
+                        putOne('taches', $id, ['id' => $id, 'titre' => mb_substr((string)($doc['titre'] ?? ''), 0, 200), 'description' => mb_substr((string)($doc['description'] ?? ''), 0, 4000),
+                            'assigneId' => $doc['assigneId'], 'creePar' => $u['id'], 'creeLe' => gmdate('Y-m-d'), 'echeance' => (string)($doc['echeance'] ?? ''),
+                            'priorite' => in_array($doc['priorite'] ?? '', ['haute', 'normale', 'basse'], true) ? $doc['priorite'] : 'normale',
+                            'statut' => $statut, 'commentaires' => $nouveaux]);
+                        break;
+                    }
+                    if ($admin || (($old['creePar'] ?? '') === $u['id'] && $peutDeleguer)) {
+                        if (!getOne('users', (string)($doc['assigneId'] ?? ''))) throw new RuntimeException('Destinataire inconnu.');
+                        foreach (['titre' => 200, 'description' => 4000] as $f => $max) $old[$f] = mb_substr((string)($doc[$f] ?? ''), 0, $max);
+                        $old['assigneId'] = $doc['assigneId']; $old['echeance'] = (string)($doc['echeance'] ?? '');
+                        if (in_array($doc['priorite'] ?? '', ['haute', 'normale', 'basse'], true)) $old['priorite'] = $doc['priorite'];
+                    } elseif (($old['assigneId'] ?? '') !== $u['id']) {
+                        throw new RuntimeException('Accès refusé.', 403);
+                    }
+                    $old['statut'] = $statut;
+                    if ($statut === 'fait') $old['termineLe'] = $old['termineLe'] ?? gmdate('Y-m-d'); else unset($old['termineLe']);
+                    $old['commentaires'] = array_merge($anciensC, $nouveaux);
+                    putOne('taches', $id, $old); break;
                 case 'clubs':
                     $doc['id'] = $id;
                     if ($admin) { putOne('clubs', $id, $doc); break; }

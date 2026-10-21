@@ -21,7 +21,7 @@ const belt = r => r == null || !GRADES[r] ? '<span class="tag">—</span>' :
 const gradeOpts = GRADES.map(g => [g.rang, g.nom]);
 
 /* ---------- Données (synchronisées avec api.php) ---------- */
-let db = { asso: { bureau: [] }, users: [], clubs: [], eleves: [], activites: [], finances: [], examens: [], meId: null };
+let db = { asso: { bureau: [] }, users: [], clubs: [], eleves: [], activites: [], finances: [], examens: [], taches: [], meId: null };
 let snap = {}, queue = Promise.resolve();
 
 async function api(action, body) {
@@ -35,7 +35,7 @@ async function api(action, body) {
 }
 function snapOf() {
   const m = { 'asso/main': JSON.stringify(db.asso) };
-  ['users', 'clubs', 'eleves', 'activites', 'finances', 'examens'].forEach(c => db[c].forEach(d => { m[c + '/' + d.id] = JSON.stringify(d); }));
+  ['users', 'clubs', 'eleves', 'activites', 'finances', 'examens', 'taches'].forEach(c => db[c].forEach(d => { m[c + '/' + d.id] = JSON.stringify(d); }));
   return m;
 }
 async function loadState(skipWait) {
@@ -125,9 +125,10 @@ function layout(route) {
   const u = me();
   const links = [['#/', 'Accueil'], ['#/association', 'Association'], ['#/histoire', 'Histoire'], ['#/activites', 'Activités'], ['#/clubs', 'Clubs'], ['#/finances', 'Finances']];
   if (u && u.role === 'maitre' && clubOf(u)) links.push([`#/espace/${clubOf(u).id}`, 'Mon club']);
+  if (u) links.push(['#/taches', 'Tâches' + (nbTachesOuvertes() ? ` (${nbTachesOuvertes()})` : '')]);
   if (u?.role === 'admin') links.push(['#/admin', 'Administration']);
   $('#nav').innerHTML = links.map(([h, l]) => `<a href="${h}" class="${('#' + route) === h ? 'on' : ''}">${l}</a>`).join('');
-  $('#who').innerHTML = u ? `<span>${esc(u.nom)} <span class="tag">${u.role === 'admin' ? 'Admin' : 'Maître'}</span></span><a class="btn sm alt" data-a="logout">Déconnexion</a>` : `<a class="btn sm" href="#/login">Connexion</a>`;
+  $('#who').innerHTML = u ? `<span>${esc(u.nom)} <span class="tag">${roleLabel(u)}</span></span><a class="btn sm alt" data-a="logout">Déconnexion</a>` : `<a class="btn sm" href="#/login">Connexion</a>`;
   $('#foot').innerHTML = `© ${new Date().getFullYear()} AISHORINK – ${esc(db.asso.nom)}<br>Siège : ${esc(db.asso.siege)}${db.asso.bp ? " – " + esc(db.asso.bp) : ""}${db.asso.tel ? "<br>Tél : " + esc(db.asso.tel) : ""}`;
 }
 
@@ -147,6 +148,7 @@ async function render() {
     case 'eleve': html = pgEleve(p2); break;
     case 'finances': html = pgFin(); break;
     case 'admin': html = pgAdmin(); break;
+    case 'taches': html = pgTaches(); break;
     case 'login': html = pgLogin(); break;
     default: html = '<p class="empty">Page introuvable.</p>';
   }
@@ -162,6 +164,45 @@ function bureauHtml(a) {
 }
 const mailLinks =v => esc(v).replace(/[\w.+-]+@[\w.-]+\.\w+/g, m => `<a href="mailto:${m}">${m}</a>`);
 const contactHtml = () => [db.asso.bp && `✉ ${esc(db.asso.bp)}`, db.asso.tel && `☎ ${esc(db.asso.tel)}`, db.asso.email && `@ ${mailLinks(db.asso.email)}`].filter(Boolean).join('<br>');
+
+/* ---------- Tâches (membres connectés) ---------- */
+const T_STAT = [['a_faire', 'À faire'], ['en_cours', 'En cours'], ['fait', 'Terminée']];
+const T_PRIO = [['haute', 'Haute'], ['normale', 'Normale'], ['basse', 'Basse']];
+const roleLabel = u => u.role === 'admin' ? 'Admin' : u.role === 'bureau' ? 'Bureau' : 'Maître';
+const canDelegate = () => { const u = me(); return !!u && (u.role === 'admin' || !!u.delegue); };
+const nbTachesOuvertes = () => { const u = me(); return u ? db.taches.filter(t => t.assigneId === u.id && t.statut !== 'fait').length : 0; };
+const tacheFields = () => [{ n: 'titre', l: 'Tâche', req: 1 }, { n: 'description', l: 'Détails / consignes', t: 'textarea' },
+  { n: 'assigneId', l: 'Déléguer à', t: 'select', opts: db.users.map(x => [x.id, x.nom + ' (' + roleLabel(x) + ')']) },
+  { n: 'echeance', l: 'À faire avant le', t: 'date' }, { n: 'priorite', l: 'Priorité', t: 'select', opts: T_PRIO.map(([k, l]) => [k, l]) }];
+function tacheCard(t, u, today) {
+  const mine = t.assigneId === u.id, owner = u.role === 'admin' || (t.creePar === u.id && canDelegate());
+  const late = t.echeance && t.echeance < today && t.statut !== 'fait';
+  const nom = id => esc(user(id)?.nom || '—');
+  return `<div class="card" style="${late ? 'border-color:#c33' : ''}${t.statut === 'fait' ? ';opacity:.75' : ''}">
+  <div class="row"><b style="${t.statut === 'fait' ? 'text-decoration:line-through' : ''}">${esc(t.titre)}</b><span class="sp"></span>
+   <span class="tag ${t.priorite === 'haute' ? 'no' : ''}">${esc(T_PRIO.find(p => p[0] === t.priorite)?.[1] || '')}</span>
+   ${mine || owner ? `<select style="width:auto" data-c="tstat" data-id="${t.id}">${T_STAT.map(([k, l]) => `<option value="${k}" ${t.statut === k ? 'selected' : ''}>${l}</option>`).join('')}</select>` : `<span class="tag">${esc(T_STAT.find(p => p[0] === t.statut)?.[1])}</span>`}</div>
+  <div class="sub" style="margin:4px 0">👤 ${nom(t.assigneId)} &nbsp;·&nbsp; de ${nom(t.creePar)}${t.echeance ? ` &nbsp;·&nbsp; 📅 <b class="${late ? 'neg' : ''}">${fmtD(t.echeance)}${late ? ' (en retard)' : ''}</b>` : ''}</div>
+  ${t.description ? `<p style="margin:6px 0">${esc(t.description).replace(/\n/g, '<br>')}</p>` : ''}
+  ${(t.commentaires || []).map(c => `<div style="background:#f3f0ea;border-radius:8px;padding:6px 10px;margin:4px 0;font-size:13px"><b>${nom(c.auteur)}</b> <span class="sub">${fmtD((c.date || '').slice(0, 10))}</span><br>${esc(c.texte).replace(/\n/g, '<br>')}</div>`).join('')}
+  <div class="row" style="margin-top:8px"><button class="btn sm alt" data-a="commentTache" data-id="${t.id}">💬 Commenter</button><span class="sp"></span>
+   ${owner ? `<button class="btn sm alt" data-a="editTache" data-id="${t.id}">Modifier</button> <button class="btn sm dng" data-a="delTache" data-id="${t.id}">Supprimer</button>` : ''}</div></div>`;
+}
+function pgTaches() {
+  const u = me(); if (!u) return '<div class="card"><h2>Accès réservé</h2><p>Cet espace est réservé aux maîtres et aux membres du bureau. Connectez-vous pour y accéder.</p><a class="btn" href="#/login">Se connecter</a></div>';
+  const del = canDelegate(), tabs = [['mes', 'Mes tâches']];
+  if (del) tabs.push(['deleguees', 'Déléguées par moi']);
+  if (u.role === 'admin') tabs.push(['toutes', 'Toutes les tâches']);
+  if (!tabs.some(t => t[0] === S.ttab)) S.ttab = 'mes';
+  const today = new Date().toISOString().slice(0, 10), rang = { haute: 0, normale: 1, basse: 2 };
+  const list = db.taches.filter(t => S.ttab === 'mes' ? t.assigneId === u.id : S.ttab === 'deleguees' ? t.creePar === u.id : true)
+    .sort((a, b) => (a.statut === 'fait') - (b.statut === 'fait') || (a.echeance || '9999').localeCompare(b.echeance || '9999') || rang[a.priorite] - rang[b.priorite]);
+  const ouvertes = list.filter(t => t.statut !== 'fait').length, retard = list.filter(t => t.echeance && t.echeance < today && t.statut !== 'fait').length;
+  return `<div class="row"><div class="sp"><h1>Tâches</h1><p class="sub">Espace réservé aux maîtres et aux membres du bureau connectés.</p></div>${del ? '<button class="btn" data-a="addTache">+ Déléguer une tâche</button>' : ''}</div>
+  <div class="tabs">${tabs.map(([k, l]) => `<a data-a="ttab" data-k="${k}" class="${S.ttab === k ? 'on' : ''}">${l}</a>`).join('')}</div>
+  <p>Ouvertes : <b>${ouvertes}</b> &nbsp;•&nbsp; En retard : <b class="${retard ? 'neg' : ''}">${retard}</b> &nbsp;•&nbsp; Terminées : <b class="pos">${list.length - ouvertes}</b></p>
+  ${list.length ? `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))">${list.map(t => tacheCard(t, u, today)).join('')}</div>` : '<p class="empty">Aucune tâche ici.</p>'}`;
+}
 
 const denied =() => `<div class="card"><h2>Accès réservé</h2><p>Cet espace n'est accessible qu'au maître du club concerné ou à l'administrateur général.</p><a class="btn" href="#/login">Se connecter</a></div>`;
 
@@ -376,7 +417,7 @@ function pgAdmin() {
     <table><tr><th>Matricule</th><th>Club</th><th>Maître</th><th>Élèves</th><th></th></tr>${db.clubs.map(c => `<tr><td><span class="tag mono">${c.matricule}</span></td><td>${esc(c.nom)}</td><td>${esc(user(c.maitreId)?.nom || '—')}</td><td>${clubElevesOf(c.id).length}</td>
     <td><a class="btn sm" href="#/espace/${c.id}">Espace</a> <button class="btn sm alt" data-a="adminClub" data-id="${c.id}">Modifier</button> <button class="btn sm dng" data-a="delClub" data-id="${c.id}">Supprimer</button></td></tr>`).join('') || '<tr><td colspan=5 class="empty">Aucun club</td></tr>'}</table>`;
   else if (S.atab === 'maitres') b = `<div class="row"><span class="sp"></span><button class="btn" data-a="addMaitre">+ Nouveau maître (compte)</button></div>
-    <table><tr><th>Nom</th><th>Identifiant</th><th>Grade</th><th>Club</th><th></th></tr>${db.users.map(u => `<tr><td>${esc(u.nom)}</td><td>${esc(u.login)}</td><td>${u.role === 'admin' ? '<span class="tag">Admin</span>' : belt(u.grade)}</td><td>${esc(clubOf(u)?.nom || '—')}</td>
+    <table><tr><th>Nom</th><th>Identifiant</th><th>Grade</th><th>Club</th><th></th></tr>${db.users.map(u => `<tr><td>${esc(u.nom)}</td><td>${esc(u.login)}</td><td>${u.role === 'admin' ? '<span class="tag">Admin</span>' : (u.role === 'bureau' && u.grade == null ? '<span class="tag">Bureau</span>' : belt(u.grade))}${u.delegue ? ' <span class="tag ok" title="Peut déléguer des tâches">délègue</span>' : ''}</td><td>${esc(clubOf(u)?.nom || '—')}</td>
     <td><button class="btn sm alt" data-a="editMaitre" data-id="${u.id}">Modifier</button> ${u.id !== 'u_admin' ? `<button class="btn sm dng" data-a="delMaitre" data-id="${u.id}">Supprimer</button>` : ''}</td></tr>`).join('')}</table>`;
   else if (S.atab === 'examens') b = examPanel();
   else b = `<div class="card"><h3>Sauvegarde</h3><p>Les données sont dans la base du serveur (dossier <code>data/</code>). Copiez ce dossier régulièrement ; l'export JSON ci-dessous est une copie lisible des données visibles.</p>
@@ -444,12 +485,12 @@ const A = {
   delClub: d => confirmDo('Supprimer ce club ET tous ses élèves ?', () => { db.clubs = db.clubs.filter(c => c.id !== d.id); db.eleves = db.eleves.filter(e => e.clubId !== d.id); save(); rerender(); }),
 
   /* maîtres */
-  addMaitre: () => openForm('Nouveau maître', [{ n: 'nom', l: 'Nom complet', req: 1 }, { n: 'login', l: 'Identifiant', req: 1 }, { n: 'pw', l: 'Mot de passe', t: 'password', req: 1 }, { n: 'grade', l: 'Grade', t: 'select', opts: gradeOpts, def: 10 }], {}, async o => {
+  addMaitre: () => openForm('Nouveau compte', [{ n: 'role', l: 'Type de compte', t: 'select', opts: [['maitre', 'Maître'], ['bureau', 'Membre du bureau']] }, { n: 'nom', l: 'Nom complet', req: 1 }, { n: 'login', l: 'Identifiant', req: 1 }, { n: 'pw', l: 'Mot de passe', t: 'password', req: 1 }, { n: 'grade', l: 'Grade (laisser « aucun » pour un membre non gradé)', t: 'select', opts: [['', '— aucun —'], ...gradeOpts], def: 10 }, { n: 'delegue', l: 'Peut déléguer des tâches', t: 'select', opts: [['0', 'Non'], ['1', 'Oui']] }], {}, async o => {
     if (db.users.some(u => u.login === o.login)) return alert('Identifiant déjà utilisé.');
-    db.users.push({ id: uid(), login: o.login, pw: o.pw, role: 'maitre', nom: o.nom, grade: +o.grade, cot: {} }); save(); rerender();
+    db.users.push({ id: uid(), login: o.login, pw: o.pw, role: o.role === 'bureau' ? 'bureau' : 'maitre', nom: o.nom, grade: o.grade === '' ? null : +o.grade, delegue: o.delegue === '1', cot: {} }); save(); rerender();
   }),
-  editMaitre: d => { const u = user(d.id); openForm('Modifier ' + u.nom, [{ n: 'nom', l: 'Nom', req: 1 }, { n: 'login', l: 'Identifiant', req: 1 }, { n: 'pw', l: 'Nouveau mot de passe (laisser vide = inchangé)', t: 'password' }, ...(u.role === 'maitre' ? [{ n: 'grade', l: 'Grade', t: 'select', opts: gradeOpts }] : [])], u, async o => {
-    u.nom = o.nom; u.login = o.login; if (o.grade !== undefined) u.grade = +o.grade; if (o.pw) u.pw = o.pw; save(); rerender();
+  editMaitre: d => { const u = user(d.id); openForm('Modifier ' + u.nom, [{ n: 'nom', l: 'Nom', req: 1 }, { n: 'login', l: 'Identifiant', req: 1 }, { n: 'pw', l: 'Nouveau mot de passe (laisser vide = inchangé)', t: 'password' }, ...(u.role !== 'admin' ? [{ n: 'grade', l: 'Grade', t: 'select', opts: [['', '— aucun —'], ...gradeOpts] }, { n: 'delegue', l: 'Peut déléguer des tâches', t: 'select', opts: [['0', 'Non'], ['1', 'Oui']] }] : [])], { ...u, grade: u.grade ?? '', delegue: u.delegue ? '1' : '0' }, async o => {
+    u.nom = o.nom; u.login = o.login; if (o.grade !== undefined) u.grade = o.grade === '' ? null : +o.grade; if (o.delegue !== undefined) u.delegue = o.delegue === '1'; if (o.pw) u.pw = o.pw; save(); rerender();
   }); },
   delMaitre: d => confirmDo('Supprimer ce compte ?', () => { db.clubs.forEach(c => { if (c.maitreId === d.id) c.maitreId = ''; }); db.users = db.users.filter(u => u.id !== d.id); save(); rerender(); }),
 
@@ -475,6 +516,18 @@ const A = {
   editHistoCI: () => openForm('Le Shorinjiryu Kenkokan en Côte d\u2019Ivoire', [{ n: 'histoireCI', l: 'Texte (arrivée du style, fondateurs, premiers clubs, événements marquants…)', t: 'textarea' }], db.asso, o => { db.asso.histoireCI = o.histoireCI; save(); rerender(); }),
   addChrono: () => openForm('Événement', [{ n: 'annee', l: 'Année (ou date)', req: 1 }, { n: 'texte', l: 'Événement', t: 'textarea', req: 1 }], {}, o => { (db.asso.chrono = db.asso.chrono || []).push({ id: uid(), ...o }); save(); rerender(); }),
   delChrono: d => { db.asso.chrono = db.asso.chrono.filter(c => c.id !== d.id); save(); rerender(); },
+  /* tâches */
+  addTache: () => openForm('Nouvelle tâche', tacheFields(), { priorite: 'normale' }, o => {
+    db.taches.push({ id: uid(), titre: o.titre, description: o.description, assigneId: o.assigneId, creePar: me().id, creeLe: new Date().toISOString().slice(0, 10), echeance: o.echeance, priorite: o.priorite, statut: 'a_faire', commentaires: [] });
+    S.ttab = 'deleguees'; save(); rerender();
+  }),
+  editTache: d => { const t = db.taches.find(x => x.id === d.id); openForm('Modifier la tâche', tacheFields(), t, o => { Object.assign(t, o); save(); rerender(); }); },
+  delTache: d => confirmDo('Supprimer cette tâche ?', () => { db.taches = db.taches.filter(t => t.id !== d.id); save(); rerender(); }),
+  commentTache: d => openForm('Commentaire', [{ n: 'texte', l: 'Votre message', t: 'textarea', req: 1 }], {}, o => {
+    const t = db.taches.find(x => x.id === d.id); (t.commentaires = t.commentaires || []).push({ auteur: me().id, texte: o.texte, date: new Date().toISOString() }); save(); rerender();
+  }, 'Envoyer'),
+  ttab: d => { S.ttab = d.k; rerender(); },
+
   /* examens */
   addExam: () => openForm("Nouvelle session d'examen", [{ n: 'titre', l: 'Intitulé', req: 1, def: 'Examen de passage de grade' }, { n: 'date', l: 'Date', t: 'date', req: 1 }, { n: 'lieu', l: 'Lieu' }, { n: 'seuil', l: 'Total minimum pour être admis (/100)', t: 'number', def: 50 }], {},
     o => { const x = { id: uid(), ...o, seuil: +o.seuil || 50, cands: [] }; db.examens.push(x); S.exam = x.id; save(); rerender(); }),
@@ -513,7 +566,11 @@ document.addEventListener('click', ev => {
 });
 document.addEventListener('change', async ev => {
   const t = ev.target, c = t.dataset.c; if (!c) return;
-  if (c === 'note' || c === 'newg') {
+  if (c === 'tstat') {
+    const tk = db.taches.find(x => x.id === t.dataset.id); tk.statut = t.value;
+    if (t.value === 'fait') tk.termineLe = new Date().toISOString().slice(0, 10); else delete tk.termineLe;
+    save(); rerender();
+  } else if (c === 'note' || c === 'newg') {
     const ex = curExam(), cd = ex.cands.find(x => x.id === t.dataset.id);
     if (c === 'newg') cd.nouveau = t.value === '' ? '' : +t.value;
     else { cd.notes = cd.notes || {}; cd.notes[t.dataset.k] = t.value === '' ? '' : Math.min(+t.value, +t.max); t.value = cd.notes[t.dataset.k]; const r = t.closest('tr'); r.querySelector('.tot').innerHTML = '<b>' + exTotal(cd) + '</b>'; r.querySelector('.res').innerHTML = exResult(cd, ex); }
@@ -532,7 +589,7 @@ document.addEventListener('submit', async ev => {
   catch (e) { $('#lerr').textContent = e.message; return; }
   await loadState();
   const u = me();
-  go(u.role === 'admin' ? '#/admin' : (clubOf(u) ? '#/espace/' + clubOf(u).id : '#/'));
+  go(u.role === 'admin' ? '#/admin' : (clubOf(u) ? '#/espace/' + clubOf(u).id : '#/taches'));
   rerender();
 });
 window.addEventListener('hashchange', () => loadState().then(render).catch(e => { $('#app').innerHTML = `<div class="card"><h2>Erreur</h2><p>${esc(e.message)}</p></div>`; }));
