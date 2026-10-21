@@ -62,7 +62,7 @@ textarea{min-height:80px}
 .origins figure{margin:0;text-align:center}.origins img{width:100%;max-width:240px;border-radius:10px;border:1px solid var(--line)}
 .origins figcaption{margin-top:6px;font-size:14px}
 .sc{width:62px;padding:4px;text-align:center}
-.hero .heroLogo{float:right;width:110px;border-radius:50%;background:#fff;margin:0 0 10px 16px}
+.hero .heroLogo{float:right;width:190px;max-width:38%;border-radius:50%;background:#fff;padding:3px;margin:0 0 10px 16px;box-shadow:0 4px 18px rgba(0,0,0,.45)}
 
 /* ---------- Responsive ---------- */
 #burger{display:none;margin-left:auto;background:none;border:1px solid #555;color:#fff;font-size:22px;line-height:1;padding:6px 12px;border-radius:8px;cursor:pointer}
@@ -78,7 +78,7 @@ table{min-width:0}
   .who{order:2;flex:1 0 100%;justify-content:space-between}
   main{margin:16px auto}
   h1{font-size:23px}h2{font-size:18px}
-  .hero{padding:26px 18px}.hero h1{font-size:26px}.hero .heroLogo{width:80px}
+  .hero{padding:26px 18px}.hero h1{font-size:26px}.hero .heroLogo{width:110px}
   .grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
   dl{grid-template-columns:1fr;gap:0}dt{margin-top:8px;font-size:12px;text-transform:uppercase}
   .tabs a{flex:1 1 auto;text-align:center}

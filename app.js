@@ -159,7 +159,7 @@ const denied = () => `<div class="card"><h2>Accès réservé</h2><p>Cet espace n
 /* ---------- Pages publiques ---------- */
 function pgHome() {
   const nextActs = db.activites.filter(a => a.date >= new Date().toISOString().slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
-  return `<div class="hero"><img class="heroLogo" src="img/logo.jpg" alt=""><h1>空手道 – AISHORINK</h1><p><b>${esc(db.asso.nom)}</b><br>Discipline, respect, persévérance : le Shorinjiryu Kenkokan Karatedo en Côte d'Ivoire.</p>
+  return `<div class="hero"><img class="heroLogo" src="img/logo-aishork.png" alt="Logo de l'Association Ivoirienne de Shorinjiryu Kenkokan Karatedo"><h1>空手道 – AISHORINK</h1><p><b>${esc(db.asso.nom)}</b><br>Discipline, respect, persévérance : le Shorinjiryu Kenkokan Karatedo en Côte d'Ivoire.</p>
   <a class="btn" href="#/clubs">Trouver un club</a> <a class="btn alt" href="#/activites">Voir les activités</a> <a class="btn alt" href="#/histoire">Histoire du style</a></div>
   <div class="grid">
    <div class="card"><div class="stat">${db.clubs.length}</div>Clubs affiliés</div>
