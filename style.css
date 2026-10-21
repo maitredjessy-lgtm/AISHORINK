@@ -103,3 +103,6 @@ table{min-width:0}
   linear-gradient(90deg,#f77f00 0 33.33%,#ffffff 33.33% 66.66%,#009e60 66.66% 100%);
   text-shadow:0 1px 6px rgba(0,0,0,.7);min-height:300px}
 .hero .btn.alt{text-shadow:none}
+
+dd,.card td,.card h3{overflow-wrap:anywhere}
+.grid{grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr))}

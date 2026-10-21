@@ -172,6 +172,43 @@ if (getOne('meta', 'seed_asso_contact') === null) {
     putOne('meta', 'seed_asso_contact', ['done' => true]);
 }
 
+/* ---- Bureau officiel (communiqué de la Présidente du 20/02/2026) ---- */
+if (getOne('meta', 'seed_bureau_2026') === null) {
+    $asso = getOne('asso', 'main');
+    if ($asso) {
+        $provisoire = ["Présidente de l'Association", "Grand Maître du Shorinjiryu Kenkokan en Côte d'Ivoire", 'Administrateur général'];
+        $ancien = $asso['bureau'] ?? [];
+        $personnalise = false;
+        foreach ($ancien as $b) if (!in_array($b['poste'] ?? '', $provisoire, true)) $personnalise = true;
+        if (!$personnalise) {
+            $B = fn($g, $p, $n) => ['groupe' => $g, 'poste' => $p, 'nom' => $n];
+            $asso['bureau'] = [
+                $B('Présidence', 'Présidente', 'OUATTARA Bouara Rokya, épse KONAN (4e DAN)'),
+                $B('Grand Maître', "Grand Maître du Shorinjiryu Kenkokan en Côte d'Ivoire", 'COULIBALY Daouda (6e DAN)'),
+                $B('Vice-présidence', '1er Vice-Président', "N'ZI Honoré N'Zi"),
+                $B('Vice-présidence', '2e Vice-Président', 'BEUGRÉ Djidji Lambert'),
+                $B('Secrétariat général', 'Secrétaire Général', 'TOGOLA Sorry (2e DAN)'),
+                $B('Secrétariat général', 'Secrétaire Général Adjoint', 'SERE Ali'),
+                $B('Trésorerie générale', 'Trésorière Générale', 'BAMBA Awa'),
+                $B('Trésorerie générale', 'Trésorière Générale Adjointe', 'KOUADIO Amenant Siata'),
+                $B('Direction technique', 'Directeur Technique', 'DIALLO Ibrahim'),
+                $B('Direction technique', 'Directeur Technique Adjoint', 'DIGBEU Evariste'),
+                $B('Communication', 'Chargé de Communication', 'ESSE Decho Louis Constant'),
+                $B('Organisation', "Chargé à l'Organisation", 'BAMBA Awa'),
+                $B('Organisation', "Chargé à l'Organisation Adjoint", 'TRAORÉ Mariam'),
+                $B('Commission des grades', 'Président', 'COULIBALY Daouda (6e DAN)'),
+                $B('Commission des grades', 'Vice-Président', 'SIDIBÉ Adama (4e DAN)'),
+                $B('Conseillers', 'Conseiller', 'COULIBALY Daouda'),
+                $B('Conseillers', 'Conseiller', 'SIDIBÉ Adama'),
+                $B('Conseillers', 'Conseiller', 'BEUGRÉ Djidji Lambert'),
+            ];
+            $asso['bureauDate'] = '20/02/2026';
+            putOne('asso', 'main', $asso);
+        }
+    }
+    putOne('meta', 'seed_bureau_2026', ['done' => true]);
+}
+
 /* ---- Requête ---- */
 $in = [];
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST requis', 405);

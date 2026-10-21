@@ -154,7 +154,13 @@ async function render() {
   window.scrollTo(0, 0);
 }
 
-const mailLinks = v => esc(v).replace(/[\w.+-]+@[\w.-]+\.\w+/g, m => `<a href="mailto:${m}">${m}</a>`);
+function bureauHtml(a) {
+  const rows = db.asso.bureau.map((b, i) => ({ ...b, i })), groups = [];
+  rows.forEach(r => { const g = r.groupe || ''; let x = groups.find(y => y.g === g); if (!x) groups.push(x = { g, rows: [] }); x.rows.push(r); });
+  if (!groups.length) return '<p class="empty">Bureau non renseigné.</p>';
+  return `<div class="grid">${groups.map(x => `<div class="card">${x.g ? `<h3>${esc(x.g)}</h3>` : ''}<table class="plain" style="border:0">${x.rows.map(r => `<tr><td style="width:46%;color:var(--mut)">${esc(r.poste)}</td><td><b>${esc(r.nom)}</b></td>${a ? `<td style="width:1%"><button class="btn sm dng" data-a="delBureau" data-i="${r.i}">×</button></td>` : ''}</tr>`).join('')}</table></div>`).join('')}</div>`;
+}
+const mailLinks =v => esc(v).replace(/[\w.+-]+@[\w.-]+\.\w+/g, m => `<a href="mailto:${m}">${m}</a>`);
 const contactHtml = () => [db.asso.bp && `✉ ${esc(db.asso.bp)}`, db.asso.tel && `☎ ${esc(db.asso.tel)}`, db.asso.email && `@ ${mailLinks(db.asso.email)}`].filter(Boolean).join('<br>');
 
 const denied =() => `<div class="card"><h2>Accès réservé</h2><p>Cet espace n'est accessible qu'au maître du club concerné ou à l'administrateur général.</p><a class="btn" href="#/login">Se connecter</a></div>`;
@@ -181,8 +187,9 @@ function pgAsso() {
   return `<h1>L'association</h1><p class="sub">${esc(db.asso.nom)}</p>
   <div class="card"><dl><dt>Devise</dt><dd>${db.asso.devise ? '« ' + esc(db.asso.devise) + ' »' : '—'}</dd><dt>Siège social</dt><dd>${esc(db.asso.siege)}</dd><dt>Boîte postale</dt><dd>${esc(db.asso.bp) || '—'}</dd><dt>Téléphone</dt><dd>${esc(db.asso.tel) || '—'}</dd><dt>Email</dt><dd>${db.asso.email ? mailLinks(db.asso.email) : '—'}</dd><dt>Statut</dt><dd>${esc(db.asso.statut) || '—'}</dd><dt>Cotisation mensuelle des maîtres</dt><dd>${money(db.asso.cotMaitre)}</dd></dl>
   ${a ? '<p><button class="btn sm" data-a="editAsso">Modifier</button></p>' : ''}</div>
-  <h2>Organigramme / Bureau ${a ? '<button class="btn sm" data-a="addBureau">+ Ajouter</button>' : ''}</h2>
-  <table><tr><th>Poste</th><th>Nom</th>${a ? '<th></th>' : ''}</tr>${db.asso.bureau.map((b, i) => `<tr><td>${esc(b.poste)}</td><td>${esc(b.nom)}</td>${a ? `<td><button class="btn sm dng" data-a="delBureau" data-i="${i}">Retirer</button></td>` : ''}</tr>`).join('')}</table>
+  <h2>Bureau officiel ${a ? '<button class="btn sm" data-a="addBureau">+ Ajouter</button>' : ''}</h2>
+  ${db.asso.bureauDate ? `<p class="sub">Composition du bureau de la Présidente – communiqué du ${esc(db.asso.bureauDate)}.</p>` : ''}
+  ${bureauHtml(a)}
   <h2>Nos origines</h2>
   <div class="origins"><figure><img src="img/kori-hisataka.jpg" alt="Kori Hisataka"><figcaption><b>Kori Hisataka</b><br>Fondateur du Shorinjiryu Kenkokan</figcaption></figure>
   <figure><img src="img/masayuki-hisataka.jpg" alt="Masayuki Hisataka"><figcaption><b>Masayuki Hisataka</b><br>Chef de l'école (Shorinjiryu Kenkokan)</figcaption></figure></div>
@@ -418,7 +425,7 @@ const A = {
   yr: d => { S.year += +d.d; rerender(); },
   editAsso: () => openForm('Association', [{ n: 'nom', l: 'Nom' }, { n: 'devise', l: 'Devise' }, { n: 'siege', l: 'Siège social' }, { n: 'bp', l: 'Boîte postale' }, { n: 'tel', l: 'Téléphone(s)' }, { n: 'email', l: 'Email(s)' }, { n: 'statut', l: 'Statut juridique (récépissé…)', t: 'textarea' }, { n: 'cotMaitre', l: 'Cotisation mensuelle des maîtres', t: 'number' }], db.asso,
     o => { Object.assign(db.asso, { ...o, cotMaitre: +o.cotMaitre || 0 }); save(); rerender(); }),
-  addBureau: () => openForm('Membre du bureau', [{ n: 'poste', l: 'Poste', req: 1 }, { n: 'nom', l: 'Nom', req: 1 }], {}, o => { db.asso.bureau.push(o); save(); rerender(); }),
+  addBureau: () => openForm('Membre du bureau', [{ n: 'groupe', l: 'Rubrique (ex : Trésorerie générale)' }, { n: 'poste', l: 'Poste', req: 1 }, { n: 'nom', l: 'Nom', req: 1 }], {}, o => { db.asso.bureau.push(o); save(); rerender(); }),
   delBureau: d => { db.asso.bureau.splice(+d.i, 1); save(); rerender(); },
   addAct: () => openForm('Nouvelle activité', [{ n: 'type', l: 'Type', t: 'select', opts: actTypes }, { n: 'titre', l: 'Titre', req: 1 }, { n: 'date', l: 'Date', t: 'date', req: 1 }, { n: 'lieu', l: 'Lieu' }, { n: 'desc', l: 'Description', t: 'textarea' }], {},
     o => { db.activites.push({ id: uid(), ...o }); save(); rerender(); }),
@@ -535,5 +542,5 @@ init().then(render);
 $('#burger').addEventListener('click', () => { const o = $('#nav').classList.toggle('open'); $('#burger').setAttribute('aria-expanded', o); });
 $('#nav').addEventListener('click', ev => { if (ev.target.closest('a')) { $('#nav').classList.remove('open'); $('#burger').setAttribute('aria-expanded', 'false'); } });
 new MutationObserver(() => document.querySelectorAll('#app table').forEach(t => {
-  if (!t.parentElement.classList.contains('scroll')) { const w = document.createElement('div'); w.className = 'scroll'; t.replaceWith(w); w.appendChild(t); }
+  if (!t.classList.contains('plain') && !t.parentElement.classList.contains('scroll')) { const w = document.createElement('div'); w.className = 'scroll'; t.replaceWith(w); w.appendChild(t); }
 })).observe($('#app'), { childList: true });
