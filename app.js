@@ -123,7 +123,7 @@ const rerender = () => render();
 
 function layout(route) {
   const u = me();
-  const links = [['#/', 'Accueil'], ['#/association', 'Association'], ['#/activites', 'Activités'], ['#/clubs', 'Clubs'], ['#/finances', 'Finances']];
+  const links = [['#/', 'Accueil'], ['#/association', 'Association'], ['#/histoire', 'Histoire'], ['#/activites', 'Activités'], ['#/clubs', 'Clubs'], ['#/finances', 'Finances']];
   if (u && u.role === 'maitre' && clubOf(u)) links.push([`#/espace/${clubOf(u).id}`, 'Mon club']);
   if (u?.role === 'admin') links.push(['#/admin', 'Administration']);
   $('#nav').innerHTML = links.map(([h, l]) => `<a href="${h}" class="${('#' + route) === h ? 'on' : ''}">${l}</a>`).join('');
@@ -139,6 +139,7 @@ async function render() {
   switch (p1 || '') {
     case '': html = pgHome(); break;
     case 'association': html = pgAsso(); break;
+    case 'histoire': html = pgHisto(); break;
     case 'activites': html = pgActs(); break;
     case 'clubs': html = pgClubs(); break;
     case 'club': html = pgClub(p2); break;
@@ -159,7 +160,7 @@ const denied = () => `<div class="card"><h2>Accès réservé</h2><p>Cet espace n
 function pgHome() {
   const nextActs = db.activites.filter(a => a.date >= new Date().toISOString().slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
   return `<div class="hero"><img class="heroLogo" src="img/logo.jpg" alt=""><h1>空手道 – AISHORINK</h1><p><b>${esc(db.asso.nom)}</b><br>Discipline, respect, persévérance : le Shorinjiryu Kenkokan Karatedo en Côte d'Ivoire.</p>
-  <a class="btn" href="#/clubs">Trouver un club</a> <a class="btn alt" href="#/activites">Voir les activités</a></div>
+  <a class="btn" href="#/clubs">Trouver un club</a> <a class="btn alt" href="#/activites">Voir les activités</a> <a class="btn alt" href="#/histoire">Histoire du style</a></div>
   <div class="grid">
    <div class="card"><div class="stat">${db.clubs.length}</div>Clubs affiliés</div>
    <div class="card"><div class="stat">${db.users.filter(u => u.role === 'maitre').length}</div>Maîtres</div>
@@ -186,6 +187,50 @@ function pgAsso() {
   ${masters.length ? `<table><tr><th>#</th><th>Maître</th><th>Grade</th><th>Club</th></tr>${masters.map((m, i) => { const c = clubOf(m); return `<tr><td>${i + 1}</td><td>${esc(m.nom)}</td><td>${belt(m.grade)}</td><td>${c ? `<a href="#/club/${c.id}">${esc(c.nom)}</a>` : '—'}</td></tr>`; }).join('')}</table>` : '<p class="empty">Aucun maître enregistré.</p>'}
   <h2>Échelle des grades</h2>
   <div class="card ladder">${[...GRADES].reverse().map(g => `<div style="margin:4px 0">${belt(g.rang)}</div>`).join('')}</div>`;
+}
+
+/* ---------- Histoire du style ---------- */
+function pgHisto() {
+  const a = isAdmin(), chrono = [...(db.asso.chrono || [])].sort((x, y) => String(x.annee).localeCompare(String(y.annee)));
+  return `<h1>Histoire du Shorinjiryu Kenkokan Karatedo</h1><p class="sub">Un karaté d'Okinawa, transmis du Japon jusqu'en Côte d'Ivoire.</p>
+  <h2>Les racines okinawaïennes</h2>
+  <div class="card"><p>Le <b>Shōrinjiryū</b> (« école de la forêt des jeunes pins ») fait partie des grandes lignées du karaté d'Okinawa, nées dans les villes de Shuri, Naha et Tomari, où les maîtres échangeaient beaucoup leurs savoirs. La première démonstration publique de karaté à Okinawa date de 1906.</p>
+  <p>Le Kenkokan (« la maison où l'on cultive la santé et la force de corps et d'esprit ») en est une branche, fondée au Japon après la Seconde Guerre mondiale.</p></div>
+  <h2>Le fondateur : Kōri Hisataka (1907–1988)</h2>
+  <div class="card"><div class="origins" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"><figure><img src="img/kori-hisataka.jpg" alt="Kōri Hisataka"><figcaption>Kaiso Kōri Masayoshi Hisataka<br>(Seiki Kudaka)</figcaption></figure>
+  <div style="grid-column:span 2;min-width:240px"><ul>
+   <li>Né à <b>Shuri (Okinawa) en 1907</b> dans la famille Kudaka, il apprend d'abord le style familial (Kudaka-ryū) auprès de son père, de son grand-père et de son oncle.</li>
+   <li>Il se forme ensuite au karaté et au kobudō auprès de grands maîtres d'Okinawa dont <b>Ankō Asato</b> et <b>Chōtoku Kyan</b> (selon les sources, aussi Chōtoku Kyamu et Sanda Kanagusuku).</li>
+   <li>En <b>1929</b>, il compte parmi les représentants du karaté d'Okinawa invités à un festival d'arts martiaux à Taïwan, puis voyage en Chine.</li>
+   <li>Au <b>Kōdōkan</b> de Tokyo, il atteint le <b>4ᵉ dan de judo</b> après un an d'étude. Il étudie aussi le kendo, le jujutsu, le bōjutsu et le Shorinji Kempo.</li>
+   <li>Après la guerre, il insiste sur le <b>développement spirituel</b> de l'individu par le karaté. Il fonde l'école Kenkokan vers <b>1945</b> (certaines sources indiquent 1947). Le siège (Hombu Dojo) s'établit ensuite à Tokyo, dans le quartier de Waseda (Shinjuku).</li>
+   <li>Il prend sa retraite en 1974 et meurt à Tokyo en 1988.</li></ul></div></div></div>
+  <h2>La succession : Masayuki Hisataka</h2>
+  <div class="card"><div class="origins" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"><figure><img src="img/masayuki-hisataka.jpg" alt="Masayuki Hisataka"><figcaption>So Shihan Masayuki Kukan Hisataka</figcaption></figure>
+  <div style="grid-column:span 2;min-width:240px"><p>Fils aîné du fondateur, né le <b>18 novembre 1940</b>, le Dr <b>Masayuki Kukan Hisataka</b> dirige l'organisation depuis la retraite de son père. Il a répandu le style dans le monde et a créé de nouvelles formes (série Gorin no Bo, formes d'épée Gokyoku no Ken). Il est aussi à l'origine du <b>Koshiki Karatedo</b>, un système de compétition avec protections, ouvert à tous les styles de karaté.</p></div></div></div>
+  <h2>Ce qui caractérise le style</h2>
+  <div class="grid">
+   <div class="card"><h3>Technique</h3><p>Coups de pied de talon, engagement de tout le corps dans la technique, poing vertical (<i>tate ken</i>), travail à deux préétabli (<i>yakusoku kumite</i>) proche des budō classiques japonais, et protections permettant de tester les techniques à pleine puissance.</p></div>
+   <div class="card"><h3>Katas</h3><p>Naihanchin, Nijūshihō, Sanchin, Chinto, Kusanku, Sōchin, Koshiki Bassai, Happiken, Saisan et d'autres, ainsi que des katas d'armes (Shishiryū no Bō, Nijūshihō no Sai).</p></div>
+   <div class="card"><h3>Armes (Buki-hō)</h3><p>Bō (bâton long), sai et sabre sont au cœur de la pratique, avec des formes à deux : bō contre bō, bō contre sai.</p></div>
+   <div class="card"><h3>Esprit</h3><p>Un karaté de santé, de discipline et de construction du caractère : respect, persévérance et maîtrise de soi.</p></div>
+  </div>
+  <h2>Les grades dans le style</h2>
+  <div class="card"><p>Le style comprend <b>10 grades kyū</b> (ceintures de couleur) et <b>10 grades dan</b> (ceintures noires). Les ceintures rouge et blanche sont réservées aux hauts gradés (6ᵉ à 8ᵉ dan) et la ceinture rouge aux 9ᵉ et 10ᵉ dan. L'AISHORINK applique son propre système : blanche (1, 2), jaune (1, 2), orange (1, 2), verte (1, 2), marron (1, 2), puis noire du 1ᵉʳ au 10ᵉ DAN (voir <a href="#/association">l'association</a>).</p></div>
+  <h2>Un style présent dans le monde</h2>
+  <div class="card"><p>Le Hombu Dojo de Tokyo compte des branches affiliées dans de nombreux pays : Japon, Australie, États-Unis, Canada, Allemagne, Nouvelle-Zélande, Suisse, Venezuela, Espagne, Pays-Bas… L'AISHORINK porte cette tradition en Côte d'Ivoire.</p></div>
+  <h2>Le Shorinjiryu Kenkokan en Côte d'Ivoire</h2>
+  <div class="card"><p>${db.asso.histoireCI ? esc(db.asso.histoireCI).replace(/\n/g, '<br>') : '<span class="empty">L\'histoire de la pratique en Côte d\'Ivoire sera bientôt publiée ici.</span>'}</p>
+  ${a ? '<p class="noprint"><button class="btn sm" data-a="editHistoCI">Rédiger / modifier ce texte</button></p>' : ''}</div>
+  <h2>Chronologie ivoirienne ${a ? '<button class="btn sm noprint" data-a="addChrono">+ Événement</button>' : ''}</h2>
+  ${chrono.length ? `<table><tr><th>Année</th><th>Événement</th>${a ? '<th></th>' : ''}</tr>${chrono.map(c => `<tr><td><b>${esc(c.annee)}</b></td><td>${esc(c.texte)}</td>${a ? `<td><button class="btn sm dng" data-a="delChrono" data-id="${c.id}">×</button></td>` : ''}</tr>`).join('')}</table>` : '<p class="empty">Aucun événement enregistré.</p>'}
+  <h2>Pour en savoir plus</h2>
+  <div class="card"><ul>
+   <li><a href="https://shorinjiryu-hombu.com/" target="_blank" rel="noopener">Hombu Dojo – site officiel du Shorinjiryu Kenkokan</a></li>
+   <li><a href="https://shorinjiryu-hombu.com/short-history-original-style/" target="_blank" rel="noopener">Histoire du style (Hombu Dojo)</a></li>
+   <li><a href="https://en.wikipedia.org/wiki/Sh%C5%8Drinjiry%C5%AB_Kenk%C5%8Dkan_Karate" target="_blank" rel="noopener">Shōrinjiryū Kenkōkan Karate (Wikipédia, anglais)</a></li>
+   <li><a href="https://en.wikipedia.org/wiki/K%C5%8Dri_Hisataka" target="_blank" rel="noopener">Kōri Hisataka (Wikipédia, anglais)</a></li></ul>
+  <p class="sub">Les dates varient selon les sources (notamment l'année de fondation, 1945 ou 1947).</p></div>`;
 }
 
 const actTypes = [['examen', 'Examen de ceinture'], ['competition', 'Compétition'], ['demonstration', 'Démonstration'], ['stage', 'Stage'], ['autre', 'Autre']];
@@ -417,6 +462,9 @@ const A = {
   }),
   delSeance: d => confirmDo('Supprimer cette séance ?', () => { const c = club(d.id); c.seances = c.seances.filter(x => x !== d.d); delete c.presence?.[d.d]; save(); rerender(); }),
 
+  editHistoCI: () => openForm('Le Shorinjiryu Kenkokan en Côte d\u2019Ivoire', [{ n: 'histoireCI', l: 'Texte (arrivée du style, fondateurs, premiers clubs, événements marquants…)', t: 'textarea' }], db.asso, o => { db.asso.histoireCI = o.histoireCI; save(); rerender(); }),
+  addChrono: () => openForm('Événement', [{ n: 'annee', l: 'Année (ou date)', req: 1 }, { n: 'texte', l: 'Événement', t: 'textarea', req: 1 }], {}, o => { (db.asso.chrono = db.asso.chrono || []).push({ id: uid(), ...o }); save(); rerender(); }),
+  delChrono: d => { db.asso.chrono = db.asso.chrono.filter(c => c.id !== d.id); save(); rerender(); },
   /* examens */
   addExam: () => openForm("Nouvelle session d'examen", [{ n: 'titre', l: 'Intitulé', req: 1, def: 'Examen de passage de grade' }, { n: 'date', l: 'Date', t: 'date', req: 1 }, { n: 'lieu', l: 'Lieu' }, { n: 'seuil', l: 'Total minimum pour être admis (/100)', t: 'number', def: 50 }], {},
     o => { const x = { id: uid(), ...o, seuil: +o.seuil || 50, cands: [] }; db.examens.push(x); S.exam = x.id; save(); rerender(); }),
