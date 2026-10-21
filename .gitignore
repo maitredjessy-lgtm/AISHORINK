@@ -1,0 +1,13 @@
+# Liste blanche : seuls les fichiers du site sont versionnés
+*
+!.gitignore
+!index.html
+!style.css
+!app.js
+!api.php
+!Dockerfile
+!docker-entrypoint.sh
+!render.yaml
+!LISEZ-MOI.txt
+!demarrer.bat
+!.gitattributes

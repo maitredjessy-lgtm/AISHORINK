@@ -1,0 +1,21 @@
+AISHORINK – Site de gestion (PHP + SQLite)
+
+ESSAI SUR VOTRE ORDINATEUR
+  Double-cliquez sur demarrer.bat puis ouvrez http://localhost:8080
+  (nécessite PHP, déjà installé sur cet ordinateur).
+
+MISE EN LIGNE (hébergement PHP classique, ex. o2switch, Hostinger, OVH, cPanel…)
+  1. Hébergement avec PHP 8+ et l'extension pdo_sqlite (présente presque partout).
+  2. Envoyez index.html, style.css, app.js et api.php à la racine du site (FTP).
+  3. Activez HTTPS (certificat gratuit Let's Encrypt, proposé par l'hébergeur).
+  4. Le dossier data/ est créé automatiquement au premier accès (la base y est stockée).
+     Il contient un .htaccess qui interdit son accès web (Apache). Sur Nginx, ajoutez :
+         location /data/ { deny all; }
+  5. Connectez-vous : admin / admin2026, puis CHANGEZ le mot de passe aussitôt.
+
+SAUVEGARDE
+  Copiez régulièrement le fichier data/aishorink.sqlite.
+
+SÉCURITÉ
+  Les droits d'accès (club visible/modifiable uniquement par son maître ou l'admin)
+  sont vérifiés dans api.php, côté serveur. Les mots de passe sont chiffrés (bcrypt).

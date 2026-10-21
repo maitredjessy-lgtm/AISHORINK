@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: aishorink
+    runtime: docker
+    plan: starter        # le disque persistant n'existe pas sur le plan gratuit
+    disk:
+      name: aishorink-data
+      mountPath: /var/data
+      sizeGB: 1
