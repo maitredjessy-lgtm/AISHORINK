@@ -96,3 +96,10 @@ table{min-width:0}
   .fiche{text-align:center}.fiche .photo,.fiche .ph0{margin:auto}.fiche dl{text-align:left}
   .origins img{max-width:180px}
 }
+
+/* Accueil : drapeau de la Côte d'Ivoire en arrière-plan (orange – blanc – vert) */
+.hero{background:
+  linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28)),
+  linear-gradient(90deg,#f77f00 0 33.33%,#ffffff 33.33% 66.66%,#009e60 66.66% 100%);
+  text-shadow:0 1px 6px rgba(0,0,0,.7);min-height:300px}
+.hero .btn.alt{text-shadow:none}
