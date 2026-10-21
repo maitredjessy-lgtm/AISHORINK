@@ -189,6 +189,7 @@ if ($action === 'state') {
         if (!canClub($u, $c['id'])) { unset($c['presence'], $c['seances']); }
         return $c;
     }, getAll('clubs'));
+    usort($clubs, fn($a, $b) => strcmp($a['matricule'] ?? '', $b['matricule'] ?? ''));
     $eleves = array_values(array_filter(getAll('eleves'), fn($e) => canClub($u, $e['clubId'] ?? null)));
     out(['meId' => $u['id'] ?? null, 'asso' => getOne('asso', 'main'), 'users' => $users, 'clubs' => $clubs, 'eleves' => $eleves,
          'activites' => getAll('activites'), 'finances' => getAll('finances'),
