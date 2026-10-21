@@ -47,7 +47,7 @@ function delOne(string $coll, string $id): void {
 if (getOne('asso', 'main') === null) {
     putOne('asso', 'main', [
         'nom' => "Association Ivoirienne de Shorinjiryu Kenkokan Karatedo (AISHORINK)",
-        'siege' => "Abidjan, Côte d'Ivoire (à compléter)", 'tel' => '', 'email' => '', 'cotMaitre' => 5000,
+        'siege' => "Abidjan, Côte d'Ivoire (à compléter)", 'tel' => '', 'email' => '', 'cotMaitre' => 2000,
         'bureau' => [['poste' => 'Administrateur général', 'nom' => 'À compléter']],
     ]);
     putOne('users', 'u_admin', ['id' => 'u_admin', 'login' => 'admin', 'hash' => password_hash('admin2026', PASSWORD_DEFAULT),
@@ -138,6 +138,13 @@ if (getOne('meta', 'seed_maitres_1') === null) {
         putOne('asso', 'main', $asso);
     }
     putOne('meta', 'seed_maitres_1', ['done' => true]);
+}
+
+/* ---- Cotisation mensuelle des maîtres : 2 000 FCFA (une seule fois, remplace l'ancienne valeur par défaut) ---- */
+if (getOne('meta', 'seed_cot2000') === null) {
+    $asso = getOne('asso', 'main');
+    if ($asso && (int)($asso['cotMaitre'] ?? 0) === 5000) { $asso['cotMaitre'] = 2000; putOne('asso', 'main', $asso); }
+    putOne('meta', 'seed_cot2000', ['done' => true]);
 }
 
 /* ---- Requête ---- */
