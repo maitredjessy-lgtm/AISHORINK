@@ -209,6 +209,23 @@ if (getOne('meta', 'seed_bureau_2026') === null) {
     putOne('meta', 'seed_bureau_2026', ['done' => true]);
 }
 
+/* ---- Alignement sur le communiqué du 20/02/2026 : orthographe des noms + téléphones ---- */
+if (getOne('meta', 'seed_communique_noms') === null) {
+    $fix = fn($t) => preg_replace(['/\bRokya\b/u', '/\bSorry\b/u', '/\bAdama\b/u'], ['Rokia', 'Sory', 'Adaman'], (string)$t);
+    $asso = getOne('asso', 'main');
+    if ($asso) {
+        foreach ($asso['bureau'] ?? [] as $i => $b) $asso['bureau'][$i]['nom'] = $fix($b['nom'] ?? '');
+        $ancienTel = '05 05 55 32 19 / 07 78 99 06 84 / 01 42 42 03 30';
+        if (trim($asso['tel'] ?? '') === '' || $asso['tel'] === $ancienTel) $asso['tel'] = '05 84 44 80 33 / 07 00 73 73 80 / 07 78 99 06 84';
+        putOne('asso', 'main', $asso);
+    }
+    foreach (['u_ouattara', 'u_togola', 'u_sidibe'] as $uid) {
+        $u = getOne('users', $uid);
+        if ($u) { $u['nom'] = $fix($u['nom']); putOne('users', $uid, $u); }
+    }
+    putOne('meta', 'seed_communique_noms', ['done' => true]);
+}
+
 /* ---- Requête ---- */
 $in = [];
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST requis', 405);
