@@ -479,3 +479,10 @@ document.addEventListener('submit', async ev => {
 });
 window.addEventListener('hashchange', () => loadState().then(render).catch(e => { $('#app').innerHTML = `<div class="card"><h2>Erreur</h2><p>${esc(e.message)}</p></div>`; }));
 init().then(render);
+
+/* ---------- Mobile : menu et tableaux ---------- */
+$('#burger').addEventListener('click', () => { const o = $('#nav').classList.toggle('open'); $('#burger').setAttribute('aria-expanded', o); });
+$('#nav').addEventListener('click', ev => { if (ev.target.closest('a')) { $('#nav').classList.remove('open'); $('#burger').setAttribute('aria-expanded', 'false'); } });
+new MutationObserver(() => document.querySelectorAll('#app table').forEach(t => {
+  if (!t.parentElement.classList.contains('scroll')) { const w = document.createElement('div'); w.className = 'scroll'; t.replaceWith(w); w.appendChild(t); }
+})).observe($('#app'), { childList: true });

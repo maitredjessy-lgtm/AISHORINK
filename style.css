@@ -63,3 +63,36 @@ textarea{min-height:80px}
 .origins figcaption{margin-top:6px;font-size:14px}
 .sc{width:62px;padding:4px;text-align:center}
 .hero .heroLogo{float:right;width:110px;border-radius:50%;background:#fff;margin:0 0 10px 16px}
+
+/* ---------- Responsive ---------- */
+#burger{display:none;margin-left:auto;background:none;border:1px solid #555;color:#fff;font-size:22px;line-height:1;padding:6px 12px;border-radius:8px;cursor:pointer}
+img{max-width:100%}
+table{min-width:0}
+.scroll>table{min-width:560px}
+@media(max-width:860px){
+  .bar{gap:10px}
+  #burger{display:block}
+  nav{display:none;order:3;flex:1 0 100%;flex-direction:column;gap:2px}
+  nav.open{display:flex}
+  nav a{padding:10px 12px;font-size:15px}
+  .who{order:2;flex:1 0 100%;justify-content:space-between}
+  main{margin:16px auto}
+  h1{font-size:23px}h2{font-size:18px}
+  .hero{padding:26px 18px}.hero h1{font-size:26px}.hero .heroLogo{width:80px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  dl{grid-template-columns:1fr;gap:0}dt{margin-top:8px;font-size:12px;text-transform:uppercase}
+  .tabs a{flex:1 1 auto;text-align:center}
+}
+@media(max-width:520px){
+  .logo small{display:none}
+  .grid{grid-template-columns:1fr 1fr}
+  .stat{font-size:22px}
+  .card{padding:12px}
+  th,td{padding:7px 8px;font-size:13px}
+  .row>.btn,.row>button{flex:1 1 auto}
+  dialog{width:96vw;max-height:92vh;overflow:auto}
+  dialog form{padding:14px}
+  input,select,textarea{font-size:16px}   /* évite le zoom automatique sur iPhone */
+  .fiche{text-align:center}.fiche .photo,.fiche .ph0{margin:auto}.fiche dl{text-align:left}
+  .origins img{max-width:180px}
+}
