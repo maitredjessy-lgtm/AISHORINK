@@ -89,6 +89,24 @@ if (getOne('meta', 'seed_koshiki_maitre') === null) {
     putOne('meta', 'seed_koshiki_maitre', ['done' => true]);
 }
 
+/* ---- Titre : Grand Maître du style en Côte d'Ivoire (une seule fois) ---- */
+if (getOne('meta', 'seed_grand_maitre') === null) {
+    $asso = getOne('asso', 'main');
+    if ($asso) {
+        $poste = "Grand Maître du Shorinjiryu Kenkokan en Côte d'Ivoire";
+        $bureau = $asso['bureau'] ?? [];
+        $deja = false; foreach ($bureau as $b) if (stripos($b['nom'] ?? '', 'coulibaly') !== false) $deja = true;
+        if (!$deja) array_unshift($bureau, ['poste' => $poste, 'nom' => 'COULIBALY Daouda (6e DAN)']);
+        $asso['bureau'] = $bureau;
+        if (trim($asso['histoireCI'] ?? '') === '') {
+            $asso['histoireCI'] = "Le Grand Maître du Shorinjiryu Kenkokan en Côte d'Ivoire est Maître COULIBALY Daouda, 6e DAN.\n"
+                . "Le premier club, KOSHIKI IVOIRE, situé à Abidjan (Abobo PK 18, non loin de l'ancien marché), est aussi le siège de l'Association Ivoirienne de Shorinjiryu Kenkokan Karatedo (AISHORINK).";
+        }
+        putOne('asso', 'main', $asso);
+    }
+    putOne('meta', 'seed_grand_maitre', ['done' => true]);
+}
+
 /* ---- Requête ---- */
 $in = [];
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST requis', 405);
