@@ -105,7 +105,8 @@ if ($action === 'state') {
     }, getAll('clubs'));
     $eleves = array_values(array_filter(getAll('eleves'), fn($e) => canClub($u, $e['clubId'] ?? null)));
     out(['meId' => $u['id'] ?? null, 'asso' => getOne('asso', 'main'), 'users' => $users, 'clubs' => $clubs, 'eleves' => $eleves,
-         'activites' => getAll('activites'), 'finances' => getAll('finances')]);
+         'activites' => getAll('activites'), 'finances' => getAll('finances'),
+         'examens' => $admin ? getAll('examens') : []]);
 }
 
 if ($action === 'sync') {
@@ -119,7 +120,7 @@ if ($action === 'sync') {
         foreach ($ops as $op) {
             $coll = (string)($op['coll'] ?? ''); $id = (string)($op['id'] ?? ''); $kind = $op['op'] ?? '';
             if (!preg_match('/^[A-Za-z0-9_]{1,40}$/', $id)) throw new RuntimeException('Identifiant invalide.');
-            if (!in_array($coll, ['asso', 'users', 'clubs', 'eleves', 'activites', 'finances'], true)) throw new RuntimeException('Collection invalide.');
+            if (!in_array($coll, ['asso', 'users', 'clubs', 'eleves', 'activites', 'finances', 'examens'], true)) throw new RuntimeException('Collection invalide.');
 
             if ($kind === 'del') {
                 if ($coll === 'eleves') {
@@ -140,7 +141,7 @@ if ($action === 'sync') {
                 case 'asso':
                     if (!$admin || $id !== 'main') throw new RuntimeException('Accès refusé.', 403);
                     putOne('asso', 'main', $doc); break;
-                case 'activites': case 'finances':
+                case 'activites': case 'finances': case 'examens':
                     if (!$admin) throw new RuntimeException('Accès refusé.', 403);
                     $doc['id'] = $id; putOne($coll, $id, $doc); break;
                 case 'users':

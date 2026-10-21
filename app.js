@@ -1,5 +1,5 @@
 /* AISHORINK – Association Ivoirienne de Shorinjiryu Kenkokan Karatedo
-   Application connectée à api.php (PHP + SQLite). *
+   Application connectée à api.php (PHP + SQLite). */
 'use strict';
 
 /* ---------- Grades ---------- */
@@ -21,7 +21,7 @@ const belt = r => r == null || !GRADES[r] ? '<span class="tag">—</span>' :
 const gradeOpts = GRADES.map(g => [g.rang, g.nom]);
 
 /* ---------- Données (synchronisées avec api.php) ---------- */
-let db = { asso: { bureau: [] }, users: [], clubs: [], eleves: [], activites: [], finances: [], meId: null };
+let db = { asso: { bureau: [] }, users: [], clubs: [], eleves: [], activites: [], finances: [], examens: [], meId: null };
 let snap = {}, queue = Promise.resolve();
 
 async function api(action, body) {
@@ -35,7 +35,7 @@ async function api(action, body) {
 }
 function snapOf() {
   const m = { 'asso/main': JSON.stringify(db.asso) };
-  ['users', 'clubs', 'eleves', 'activites', 'finances'].forEach(c => db[c].forEach(d => { m[c + '/' + d.id] = JSON.stringify(d); }));
+  ['users', 'clubs', 'eleves', 'activites', 'finances', 'examens'].forEach(c => db[c].forEach(d => { m[c + '/' + d.id] = JSON.stringify(d); }));
   return m;
 }
 async function loadState(skipWait) {
@@ -117,7 +117,7 @@ function openForm(title, fields, vals, onOk, okLabel = 'Enregistrer') {
 const confirmDo = (msg, fn) => { if (confirm(msg)) fn(); };
 
 /* ---------- État / routage ---------- */
-const S = { tab: 'eleves', month: thisMonth(), year: new Date().getFullYear(), atab: 'clubs' };
+const S = { exam: null, tab: 'eleves', month: thisMonth(), year: new Date().getFullYear(), atab: 'clubs' };
 const go = h => { location.hash = h; };
 const rerender = () => render();
 
@@ -158,7 +158,7 @@ const denied = () => `<div class="card"><h2>Accès réservé</h2><p>Cet espace n
 /* ---------- Pages publiques ---------- */
 function pgHome() {
   const nextActs = db.activites.filter(a => a.date >= new Date().toISOString().slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
-  return `<div class="hero"><h1>空手道 – AISHORINK</h1><p><b>${esc(db.asso.nom)}</b><br>Discipline, respect, persévérance : le Shorinjiryu Kenkokan Karatedo en Côte d'Ivoire.</p>
+  return `<div class="hero"><img class="heroLogo" src="img/logo.jpg" alt=""><h1>空手道 – AISHORINK</h1><p><b>${esc(db.asso.nom)}</b><br>Discipline, respect, persévérance : le Shorinjiryu Kenkokan Karatedo en Côte d'Ivoire.</p>
   <a class="btn" href="#/clubs">Trouver un club</a> <a class="btn alt" href="#/activites">Voir les activités</a></div>
   <div class="grid">
    <div class="card"><div class="stat">${db.clubs.length}</div>Clubs affiliés</div>
@@ -179,6 +179,9 @@ function pgAsso() {
   ${a ? '<p><button class="btn sm" data-a="editAsso">Modifier</button></p>' : ''}</div>
   <h2>Organigramme / Bureau ${a ? '<button class="btn sm" data-a="addBureau">+ Ajouter</button>' : ''}</h2>
   <table><tr><th>Poste</th><th>Nom</th>${a ? '<th></th>' : ''}</tr>${db.asso.bureau.map((b, i) => `<tr><td>${esc(b.poste)}</td><td>${esc(b.nom)}</td>${a ? `<td><button class="btn sm dng" data-a="delBureau" data-i="${i}">Retirer</button></td>` : ''}</tr>`).join('')}</table>
+  <h2>Nos origines</h2>
+  <div class="origins"><figure><img src="img/kori-hisataka.jpg" alt="Kori Hisataka"><figcaption><b>Kori Hisataka</b><br>Fondateur du Shorinjiryu Kenkokan</figcaption></figure>
+  <figure><img src="img/masayuki-hisataka.jpg" alt="Masayuki Hisataka"><figcaption><b>Masayuki Hisataka</b><br>Chef de l'école (Shorinjiryu Kenkokan)</figcaption></figure></div>
   <h2>Classement hiérarchique des maîtres</h2>
   ${masters.length ? `<table><tr><th>#</th><th>Maître</th><th>Grade</th><th>Club</th></tr>${masters.map((m, i) => { const c = clubOf(m); return `<tr><td>${i + 1}</td><td>${esc(m.nom)}</td><td>${belt(m.grade)}</td><td>${c ? `<a href="#/club/${c.id}">${esc(c.nom)}</a>` : '—'}</td></tr>`; }).join('')}</table>` : '<p class="empty">Aucun maître enregistré.</p>'}
   <h2>Échelle des grades</h2>
@@ -312,7 +315,7 @@ function pgLogin() {
 
 function pgAdmin() {
   if (!isAdmin()) return denied();
-  const tabs = [['clubs', 'Clubs'], ['maitres', 'Maîtres'], ['data', 'Données']];
+  const tabs = [['clubs', 'Clubs'], ['maitres', 'Maîtres'], ['examens', 'Examens de grade'], ['data', 'Données']];
   let b = '';
   if (S.atab === 'clubs') b = `<div class="row"><span class="sp"></span><button class="btn" data-a="addClub">+ Nouveau club</button></div>
     <table><tr><th>Matricule</th><th>Club</th><th>Maître</th><th>Élèves</th><th></th></tr>${db.clubs.map(c => `<tr><td><span class="tag mono">${c.matricule}</span></td><td>${esc(c.nom)}</td><td>${esc(user(c.maitreId)?.nom || '—')}</td><td>${clubElevesOf(c.id).length}</td>
@@ -320,6 +323,7 @@ function pgAdmin() {
   else if (S.atab === 'maitres') b = `<div class="row"><span class="sp"></span><button class="btn" data-a="addMaitre">+ Nouveau maître (compte)</button></div>
     <table><tr><th>Nom</th><th>Identifiant</th><th>Grade</th><th>Club</th><th></th></tr>${db.users.map(u => `<tr><td>${esc(u.nom)}</td><td>${esc(u.login)}</td><td>${u.role === 'admin' ? '<span class="tag">Admin</span>' : belt(u.grade)}</td><td>${esc(clubOf(u)?.nom || '—')}</td>
     <td><button class="btn sm alt" data-a="editMaitre" data-id="${u.id}">Modifier</button> ${u.id !== 'u_admin' ? `<button class="btn sm dng" data-a="delMaitre" data-id="${u.id}">Supprimer</button>` : ''}</td></tr>`).join('')}</table>`;
+  else if (S.atab === 'examens') b = examPanel();
   else b = `<div class="card"><h3>Sauvegarde</h3><p>Les données sont dans la base du serveur (dossier <code>data/</code>). Copiez ce dossier régulièrement ; l'export JSON ci-dessous est une copie lisible des données visibles.</p>
     <button class="btn" data-a="export">Exporter (JSON)</button>
     <h3>Démonstration</h3><p>Ajoute un club, un maître et des élèves d'exemple (identifiant <code>maitre1</code>, mot de passe <code>maitre2026</code>).</p><button class="btn alt" data-a="demo">Charger les données de démonstration</button></div>`;
@@ -339,6 +343,25 @@ function applyClub(c, o) {
 const clubVals = c => ({ ...c, ...(c.prospectus || {}) });
 
 /* ---------- Actions (clics) ---------- */
+/* ---------- Examens de grade (admin) ---------- */
+const EX_CRIT = [['kihon', 'Kihon', 15], ['kata', 'Kata', 15], ['shiai', 'Shiai', 15], ['kumite', 'Kumité', 15], ['aptitude', 'Aptitude', 10], ['conduite', 'Conduite', 10], ['plie', 'Plié karatégi', 5], ['chute', 'Chute', 5], ['anglais', 'Anglais', 5], ['oral', 'Oral', 5]];
+const exTotal = c => Math.round(EX_CRIT.reduce((s, [k]) => s + (+c.notes?.[k] || 0), 0) * 100) / 100;
+const exResult = (c, ex) => exTotal(c) >= (+ex.seuil || 50) ? '<span class="tag ok">Admis</span>' : '<span class="tag no">Refusé</span>';
+function examPanel() {
+  const ex = db.examens.find(x => x.id === S.exam);
+  if (!ex) return `<div class="row"><span class="sp"></span><button class="btn" data-a="addExam">+ Nouvelle session d'examen</button></div>
+    <table><tr><th>Session</th><th>Date</th><th>Lieu</th><th>Candidats</th><th></th></tr>${[...db.examens].sort((a, b) => b.date.localeCompare(a.date)).map(x => `<tr><td>${esc(x.titre)}</td><td>${fmtD(x.date)}</td><td>${esc(x.lieu)}</td><td>${x.cands.length}</td>
+    <td><button class="btn sm" data-a="openExam" data-id="${x.id}">Ouvrir</button> <button class="btn sm dng" data-a="delExam" data-id="${x.id}">Supprimer</button></td></tr>`).join('') || '<tr><td colspan=5 class="empty">Aucune session</td></tr>'}</table>`;
+  const ranked = [...ex.cands].sort((a, b) => exTotal(b) - exTotal(a));
+  return `<div class="row noprint"><a data-a="openExam" data-id="" style="cursor:pointer">← Sessions</a><span class="sp"></span><button class="btn sm" data-a="addCand">+ Candidat</button>
+    <button class="btn sm alt" data-a="applyExam">Enregistrer les grades des admis</button><button class="btn sm alt" onclick="print()">Imprimer</button></div>
+  <h3>${esc(ex.titre)} – ${fmtD(ex.date)} – ${esc(ex.lieu)}</h3><p class="sub">Notes sur 100 (Kihon, Kata, Shiai, Kumité /15 · Aptitude, Conduite /10 · Plié karatégi, Chute, Anglais, Oral /5). Admis à partir de <b>${+ex.seuil || 50}</b> / 100 <a class="noprint" data-a="seuil" style="cursor:pointer">(modifier)</a>. Le classement se met à jour à la réouverture de la page.</p>
+  <div class="scroll"><table><tr><th>#</th><th>Candidat</th><th>Ancien grade</th>${EX_CRIT.map(([, l, m]) => `<th>${l}<br>/${m}</th>`).join('')}<th>Total</th><th>Résultat</th><th>Nouveau grade</th><th></th></tr>
+  ${ranked.map((c, i) => `<tr data-cand="${c.id}"><td>${i + 1}</td><td>${esc(c.nom)}</td><td>${belt(c.ancien)}</td>${EX_CRIT.map(([k, , m]) => `<td><input class="sc" type="number" step="0.25" min="0" max="${m}" data-c="note" data-id="${c.id}" data-k="${k}" value="${c.notes?.[k] ?? ''}"></td>`).join('')}
+  <td class="tot"><b>${exTotal(c)}</b></td><td class="res">${exResult(c, ex)}</td><td><select data-c="newg" data-id="${c.id}"><option value="">—</option>${gradeOpts.map(([k, l]) => `<option value="${k}" ${c.nouveau !== '' && c.nouveau != null && +c.nouveau === +k ? 'selected' : ''}>${l.replace('Ceinture ', '')}</option>`).join('')}</select></td>
+  <td><button class="btn sm dng noprint" data-a="delCand" data-id="${c.id}">×</button></td></tr>`).join('') || `<tr><td colspan=${EX_CRIT.length + 7} class="empty">Aucun candidat</td></tr>`}</table></div>`;
+}
+const curExam = () => db.examens.find(x => x.id === S.exam);
 const A = {
   close: () => $('#dlg').close(),
   logout: async () => { await api('logout'); await loadState(); go('#/'); rerender(); },
@@ -394,6 +417,25 @@ const A = {
   }),
   delSeance: d => confirmDo('Supprimer cette séance ?', () => { const c = club(d.id); c.seances = c.seances.filter(x => x !== d.d); delete c.presence?.[d.d]; save(); rerender(); }),
 
+  /* examens */
+  addExam: () => openForm("Nouvelle session d'examen", [{ n: 'titre', l: 'Intitulé', req: 1, def: 'Examen de passage de grade' }, { n: 'date', l: 'Date', t: 'date', req: 1 }, { n: 'lieu', l: 'Lieu' }, { n: 'seuil', l: 'Total minimum pour être admis (/100)', t: 'number', def: 50 }], {},
+    o => { const x = { id: uid(), ...o, seuil: +o.seuil || 50, cands: [] }; db.examens.push(x); S.exam = x.id; save(); rerender(); }),
+  openExam: d => { S.exam = d.id || null; rerender(); },
+  delExam: d => confirmDo('Supprimer cette session ?', () => { db.examens = db.examens.filter(x => x.id !== d.id); save(); rerender(); }),
+  seuil: () => { const x = curExam(); const v = prompt('Total minimum pour être admis (/100) :', x.seuil || 50); if (v !== null && +v > 0) { x.seuil = +v; save(); rerender(); } },
+  addCand: () => openForm('Ajouter un candidat', [{ n: 'eleveId', l: 'Pratiquant enregistré', t: 'select', opts: [['', '— saisie libre —'], ...[...db.eleves].sort((a, b) => a.nom.localeCompare(b.nom)).map(e => [e.id, `${e.nom} ${e.prenoms} (${club(e.clubId)?.matricule || '?'})`])] }, { n: 'nom', l: 'Nom et prénoms (si saisie libre)' }, { n: 'ancien', l: 'Ancien grade (si saisie libre)', t: 'select', opts: [['', '—'], ...gradeOpts] }], {}, o => {
+    const e = eleve(o.eleveId); if (!e && !o.nom.trim()) return alert('Choisissez un pratiquant ou saisissez un nom.');
+    curExam().cands.push({ id: uid(), eleveId: e ? e.id : '', nom: e ? `${e.nom} ${e.prenoms}` : o.nom.trim(), ancien: e ? gradeOf(e) : (o.ancien === '' ? null : +o.ancien), notes: {}, nouveau: '' }); save(); rerender();
+  }),
+  delCand: d => { const x = curExam(); x.cands = x.cands.filter(c => c.id !== d.id); save(); rerender(); },
+  applyExam: () => {
+    const x = curExam(); let n = 0;
+    x.cands.forEach(c => {
+      const e = eleve(c.eleveId); if (!e || c.nouveau === '' || c.nouveau == null || exTotal(c) < (+x.seuil || 50)) return;
+      if (!e.grades.some(g => +g.grade === +c.nouveau && g.date === x.date)) { e.grades.push({ id: uid(), grade: +c.nouveau, date: x.date }); n++; }
+    });
+    save(); alert(n + ' grade(s) enregistré(s) dans les fiches des pratiquants (admis avec un nouveau grade choisi).'); rerender();
+  },
   /* données */
   export: () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(db, null, 1)], { type: 'application/json' })); a.download = 'aishorink-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json'; a.click(); },
   demo: async () => {
@@ -413,7 +455,12 @@ document.addEventListener('click', ev => {
 });
 document.addEventListener('change', async ev => {
   const t = ev.target, c = t.dataset.c; if (!c) return;
-  if (c === 'month') { S.month = t.value || thisMonth(); rerender(); }
+  if (c === 'note' || c === 'newg') {
+    const ex = curExam(), cd = ex.cands.find(x => x.id === t.dataset.id);
+    if (c === 'newg') cd.nouveau = t.value === '' ? '' : +t.value;
+    else { cd.notes = cd.notes || {}; cd.notes[t.dataset.k] = t.value === '' ? '' : Math.min(+t.value, +t.max); t.value = cd.notes[t.dataset.k]; const r = t.closest('tr'); r.querySelector('.tot').innerHTML = '<b>' + exTotal(cd) + '</b>'; r.querySelector('.res').innerHTML = exResult(cd, ex); }
+    save();
+  } else if (c === 'month') { S.month = t.value || thisMonth(); rerender(); }
   else if (c === 'pay') { const e = eleve(t.dataset.id); e.pay = e.pay || {}; e.pay[S.month] = t.checked; save(); rerender(); }
   else if (c === 'pres') {
     const cl = club(t.dataset.club), d = t.dataset.d; cl.presence = cl.presence || {}; const l = cl.presence[d] = cl.presence[d] || [];
