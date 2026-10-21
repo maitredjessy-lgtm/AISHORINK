@@ -74,6 +74,21 @@ if (getOne('meta', 'seed_koshiki') === null) {
     putOne('meta', 'seed_koshiki', ['done' => true]);
 }
 
+/* ---- Maître de KOSHIKI IVOIRE : Coulibaly Daouda, 6e DAN (une seule fois) ---- */
+if (getOne('meta', 'seed_koshiki_maitre') === null) {
+    $c = getOne('clubs', 'c_koshiki');
+    if ($c && ($c['maitreId'] ?? '') === '' && getOne('users', 'u_coulibaly') === null) {
+        $login = 'coulibaly';
+        foreach (getAll('users') as $u) if (strtolower($u['login']) === $login) $login = 'coulibaly.daouda';
+        /* Mot de passe aléatoire inconnu de tous : l'administrateur en définit un via Administration → Maîtres → Modifier. */
+        putOne('users', 'u_coulibaly', ['id' => 'u_coulibaly', 'login' => $login, 'hash' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+            'role' => 'maitre', 'nom' => 'COULIBALY Daouda', 'grade' => 15, 'cot' => new stdClass()]);
+        $c['maitreId'] = 'u_coulibaly';
+        putOne('clubs', 'c_koshiki', $c);
+    }
+    putOne('meta', 'seed_koshiki_maitre', ['done' => true]);
+}
+
 /* ---- Requête ---- */
 $in = [];
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST requis', 405);
