@@ -54,6 +54,26 @@ if (getOne('asso', 'main') === null) {
         'role' => 'admin', 'nom' => 'Administrateur général', 'grade' => null, 'cot' => new stdClass()]);
 }
 
+/* ---- Premier club : KOSHIKI IVOIRE (une seule fois, ne remplace rien d'existant) ---- */
+if (getOne('meta', 'seed_koshiki') === null) {
+    $dejaLa = false;
+    foreach (getAll('clubs') as $c) if (stripos($c['nom'] ?? '', 'koshiki') !== false) $dejaLa = true;
+    $adresse = "Abobo PK 18, non loin de l'ancien marché";
+    if (!$dejaLa) {
+        $n = 0; foreach (getAll('clubs') as $c) $n = max($n, (int)substr($c['matricule'] ?? 'AISK-0', 5));
+        putOne('clubs', 'c_koshiki', ['id' => 'c_koshiki', 'matricule' => sprintf('AISK-%03d', $n + 1), 'nom' => 'KOSHIKI IVOIRE',
+            'ville' => 'Abidjan', 'adresse' => $adresse . " (siège de l'association)", 'tel' => '', 'email' => '', 'creation' => '', 'cotEleve' => 0,
+            'maitreId' => '', 'seances' => [], 'presence' => new stdClass(),
+            'prospectus' => ['inscription' => '', 'jours' => '', 'prixGrades' => '']]);
+    }
+    $asso = getOne('asso', 'main');
+    if ($asso && (stripos($asso['siege'] ?? '', 'compléter') !== false || ($asso['siege'] ?? '') === '')) {
+        $asso['siege'] = "KOSHIKI IVOIRE – " . $adresse . ", Abidjan (Côte d'Ivoire)";
+        putOne('asso', 'main', $asso);
+    }
+    putOne('meta', 'seed_koshiki', ['done' => true]);
+}
+
 /* ---- Requête ---- */
 $in = [];
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST requis', 405);
